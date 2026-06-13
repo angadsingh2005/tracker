@@ -478,6 +478,21 @@ body { font-family: var(--font-sans); background: var(--bg-main); color: var(--t
       alert("Database Error! Your progress didn't save. Reason: " + e.message);
     }
   }
+
+  async function loadFromCloud(uid) {
+    const docRef = doc(db, "users", uid);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      state = docSnap.data().state || {};
+      globalTotalSeconds = state.globalTotalSeconds || 0;
+    } else {
+      state = {};
+      globalTotalSeconds = 0;
+    }
+    updateStats();
+    renderTabs();
+    renderMonth();
+  }
   // 7. AUTHENTICATION UI LOGIC
   const unloggedDiv = document.getElementById('auth-unlogged');
   const loggedDiv = document.getElementById('auth-logged');
