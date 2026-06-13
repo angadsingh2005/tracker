@@ -453,32 +453,31 @@ body { font-family: var(--font-sans); background: var(--bg-main); color: var(--t
   let globalTotalSeconds = 0;
   let currentUserUID = null;
 
-  // 6. FIREBASE CLOUD SYNC LOGIC
+ // 6. FIREBASE CLOUD SYNC LOGIC
   async function saveToCloud() {
     if (!currentUserUID) return;
     state.globalTotalSeconds = globalTotalSeconds;
     try {
-      await setDoc(doc(db, "users", currentUserUID), { state: state });
+      // { merge: true } ensures we don't accidentally wipe data
+      await setDoc(doc(db, "users", currentUserUID), { state: state }, { merge: true });
+      
+      // Visual feedback that it successfully hit the database
+      const btnLogout = document.getElementById('btn-logout');
+      btnLogout.textContent = "Saved! ✓";
+      btnLogout.style.color = "var(--accent-primary)";
+      btnLogout.style.borderColor = "var(--accent-primary)";
+      
+      setTimeout(() => {
+        btnLogout.textContent = "Sign Out";
+        btnLogout.style.color = "#f43f5e";
+        btnLogout.style.borderColor = "#f43f5e";
+      }, 2000);
+
     } catch (e) {
-      console.error("Error saving document: ", e);
+      console.error("FIREBASE SAVE ERROR: ", e);
+      alert("Database Error! Your progress didn't save. Reason: " + e.message);
     }
   }
-
-  async function loadFromCloud(uid) {
-    const docRef = doc(db, "users", uid);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      state = docSnap.data().state || {};
-      globalTotalSeconds = state.globalTotalSeconds || 0;
-    } else {
-      state = {};
-      globalTotalSeconds = 0;
-    }
-    updateStats();
-    renderTabs();
-    renderMonth();
-  }
-
   // 7. AUTHENTICATION UI LOGIC
   const unloggedDiv = document.getElementById('auth-unlogged');
   const loggedDiv = document.getElementById('auth-logged');
