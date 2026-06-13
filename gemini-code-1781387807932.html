@@ -1,0 +1,128 @@
+<script type="module">
+ // 1. IMPORT FIREBASE MODULES (Using CDN links for standard HTML)
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // 2. PASTE YOUR FIREBASE CONFIG HERE
+  const firebaseConfig = {
+    apiKey: "AIzaSyAPUanMdIzpDodU4kz7myQ2eIWJJH9bhRI",
+    authDomain: "tracker-c2c8a.firebaseapp.com",
+    projectId: "tracker-c2c8a",
+    storageBucket: "tracker-c2c8a.firebasestorage.app",
+    messagingSenderId: "259764445113",
+    appId: "1:259764445113:web:b9a6bf2d331f2d4596a068",
+    measurementId: "G-DHF5T4V9YE"
+  };
+
+  // 3. INITIALIZE FIREBASE
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // [PASTE YOUR CURRICULUM ARRAY HERE]
+  const CURRICULUM = [ /* ... keep your existing array ... */ ];
+  const DAY_CLASS = {Monday:"day-mon",Tuesday:"day-tue",Wednesday:"day-wed",Thursday:"day-thu",Friday:"day-fri",Saturday:"day-sat",Sunday:"day-sun"};
+
+  // Global State
+  let state = {};
+  let currentMonth = 0;
+  let openWeeks = {};
+  let progressChart = null;
+  let timerInterval = null;
+  let currentSessionSeconds = 0;
+  let globalTotalSeconds = 0;
+  let currentUserUID = null; // Tracks the logged-in user
+
+  // --- CLOUD DATABASE LOGIC ---
+  
+  // Save data to Firestore instead of Local Storage
+  async function saveToCloud() {
+    if (!currentUserUID) return; // Don't save if not logged in
+    state.globalTotalSeconds = globalTotalSeconds;
+    try {
+      await setDoc(doc(db, "users", currentUserUID), { state: state });
+      console.log("Progress saved to cloud.");
+    } catch (e) {
+      console.error("Error saving document: ", e);
+    }
+  }
+
+  // Load data from Firestore
+  async function loadFromCloud(uid) {
+    const docRef = doc(db, "users", uid);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      state = docSnap.data().state || {};
+      globalTotalSeconds = state.globalTotalSeconds || 0;
+    } else {
+      state = {}; // New user
+      globalTotalSeconds = 0;
+    }
+    // Refresh the UI with the new data
+    updateStats();
+    renderTabs();
+    renderMonth();
+  }
+
+  // --- AUTHENTICATION LOGIC ---
+  const btnLogin = document.getElementById('btn-login');
+  const userNameDisplay = document.getElementById('user-name');
+
+  btnLogin.addEventListener('click', () => {
+    if (currentUserUID) {
+      signOut(auth); // Log out
+    } else {
+      signInWithPopup(auth, provider); // Log in
+    }
+  });
+
+  // Listen for login/logout events
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // User just logged in
+      currentUserUID = user.uid;
+      userNameDisplay.textContent = user.displayName;
+      btnLogin.textContent = "Sign Out";
+      btnLogin.style.background = "var(--bg-card)";
+      loadFromCloud(user.uid);
+    } else {
+      // User logged out
+      currentUserUID = null;
+      userNameDisplay.textContent = "";
+      btnLogin.textContent = "Sign In with Google";
+      btnLogin.style.background = "var(--accent-primary)";
+      state = {}; // Clear screen
+      globalTotalSeconds = 0;
+      updateStats();
+      renderTabs();
+      renderMonth();
+    }
+  });
+
+  // --- UI AND TRACKER LOGIC ---
+  // (Keep your existing functions here, but change any call to `save()` to `saveToCloud()`)
+  
+  function key(mi, wi, di) { return `${mi}_${wi}_${di}`; }
+  
+  // Expose these to the window so your HTML onclick attributes can still find them!
+  window.toggleTimer = function() {
+    if(!currentUserUID) { alert("Please sign in to track time!"); return; }
+    // ... [keep rest of your toggleTimer logic] ...
+  };
+
+  window.toggle = function(k, mi, wi, di) {
+    if(!currentUserUID) { alert("Please sign in to save progress!"); return; }
+    state[k] = !state[k];
+    saveToCloud(); // <-- Changed from save()
+    updateStats();
+    renderTabs();
+    renderMonth();
+  };
+
+  window.toggleWeek = function(wkey) { openWeeks[wkey] = !(openWeeks[wkey] !== false); renderMonth(); };
+  window.resetSessionTimer = function() { /* ... keep existing ... */ };
+
+  // ... [keep all your other computeStats, renderMonth, formatTime, etc. exactly the same] ...
+
+</script>
